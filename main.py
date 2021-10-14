@@ -13,6 +13,7 @@ def update_grid_heuristics(option: int, g: GridWorld) -> GridWorld:
 if __name__ == '__main__':
     dim = 5
     density = 0.15
-    grid = GridWorld(dim, density)
-    grid.print_grid()
-    grid.print_grid("knowledge")
+    knowledge = GridWorld(dim, density, False)
+    knowledge.print_grid()
+    maze = GridWorld(dim, density, True)
+    maze.print_grid()
