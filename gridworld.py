@@ -115,6 +115,9 @@ class Cell():
 
     def is_empty(self) -> bool:
         return self._status is Status.Empty
+    
+    def is_unconfirmed(self) -> bool:
+        return self._status is Status.Unconfirmed
 
 
 class GridWorld():
@@ -158,6 +161,13 @@ class GridWorld():
 
     def get_dim(self) -> int:
         return self._dim
+    
+    def get_cell(self, x: int, y: int) -> Cell:
+        if not 0 <= x < self._dim:
+            raise ValueError("Index x should be in the interval [0, dim)")
+        if not 0 <= y < self._dim:
+            raise ValueError("Index y should be in the interval [0, dim)")
+        return self.gridworld[x][y]
 
     def get_4_neighbors(self, current: Cell) -> list[Cell]:
         neighbors = []
@@ -174,8 +184,8 @@ class GridWorld():
         if current.y - 1 >= 0:
             neighbors.append(self.gridworld[current.x][current.y-1])
         return neighbors
-
-    def get_8_neighbors(self, current: Cell) -> list:
+    
+    def get_8_neighbors(self, current: Cell) -> list[Cell]:
         # N, S, E, W
         neighbors = self.get_4_neighbors(current)
         # NW
@@ -194,14 +204,6 @@ class GridWorld():
 
     def print_grid(self) -> str:
         maze = ""
-        # if option == "knowledge":
-        #     for row in self.knowledge:
-        #         maze += "  ".join([str(cell.get_status().value)
-        #                           for cell in row]) + "\n"
-        #     print("Option:{} Knowledge Gridworld".format(
-        #         str(self.knowledge[0][0].option)))
-        #     print(maze)
-        # else:
         for row in self.gridworld:
             maze += "  ".join([str(cell.get_status().value)
                                for cell in row]) + "\n"
@@ -212,3 +214,6 @@ class GridWorld():
             print("Option:{} Knowledge".format(
                 str(self.gridworld[0][0].option), self._is_maze))
         print(maze)
+
+    def get_grid_ascii(self) -> list[list[int]]:
+        return [[cell.get_status().value for cell in row] for row in self.gridworld]

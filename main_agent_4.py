@@ -13,7 +13,7 @@ def print_plt_grid(grid: GridWorld, title):
 
 
 def solve_agent(maze, agent, title):
-    trajectory, status, processed_cells = agent.solve()
+    trajectory, status, planning_time, total_visited_trajectory_len = agent.solve()
     temp_maze = copy.deepcopy(maze)
     if status != 'unsolvable':
         print("Solution Found")

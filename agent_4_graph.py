@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 from gridworld import GridWorld
 from q6q7plots import *
 import numpy as np
-import time
 
 def time_vs_density_3_vs_4(dim, collection_time_agent_3, collection_time_agent_4):
     font_style = {'family': 'serif', 'color': 'black', 'size': 12}
@@ -44,27 +43,26 @@ def processed_cells_3_vs_4(dim, processed_cells_agent_3, processed_cells_agent_4
     plt.close()
 
 
-def processed_cells_vs_all(dim, processed_cells_agent_1, processed_cells_agent_2, processed_cells_agent_3, processed_cells_agent_4):
-    font_style = {'family': 'serif', 'color': 'black', 'size': 12}
-    title = "Processed Cells vs Density"
-    plt.figure(num=title, tight_layout=True)
-    plt.title(title, fontdict=font_style)
+# def processed_cells_vs_all(dim, processed_cells_agent_3, processed_cells_agent_4):
+#     font_style = {'family': 'serif', 'color': 'black', 'size': 12}
+#     title = "Processed Cells vs Density"
+#     plt.figure(num=title, tight_layout=True)
+#     plt.title(title, fontdict=font_style)
 
-    plt.xlabel("Density", fontdict=font_style)
-    plt.ylabel("Number of Cells", fontdict=font_style)
+#     plt.xlabel("Density", fontdict=font_style)
+#     plt.ylabel("Number of Cells", fontdict=font_style)
 
-    plt.plot(density, processed_cells_agent_1, label="Agent 1")
-    plt.plot(density, processed_cells_agent_2, label="Agent 2")
-    plt.plot(density, processed_cells_agent_3, label="Agent 3")
-    plt.plot(density, processed_cells_agent_4, label="Agent 4")
+#     # plt.plot(density, processed_cells_agent_1, label="Agent 1")
+#     # plt.plot(density, processed_cells_agent_2, label="Agent 2")
+#     plt.plot(density, processed_cells_agent_3, label="Agent 3")
+#     plt.plot(density, processed_cells_agent_4, label="Agent 4")
 
-    plt.legend()
-    plt.grid()
-    filename = f"images/{dim}_x_{dim}_ProcessCells_vs_ALL_{iteration}.png"
-    plt.savefig(filename)
-    plt.close()
-    processed_cells_3_vs_4(dim, processed_cells_agent_3,
-                           processed_cells_agent_4)
+#     plt.legend()
+#     plt.grid()
+#     filename = f"images/{dim}_x_{dim}_ProcessCells_vs_ALL_{iteration}.png"
+#     plt.savefig(filename)
+#     plt.close()
+    
 
 
 def average_trajectory_3_vs_4(dim, iteration, average_trajectory_len_agent_3, average_trajectory_len_agent_4):
@@ -108,45 +106,27 @@ def average_trajectory_vs_all(dimensions, density, iteration, huristic_option, s
             for i in range(iteration):
                 maze = GridWorld(dim, p, True)
 
-                # #Agent 1 UPDATE
-                # agent  = InferenceAgentFourExtraRules(maze)
-                # trajectory_agent_1, status = agent.solve()
-                # if status != 'unsolvable':
-                #     sum_trajectory_agent_1 += len(trajectory_agent_1)
-                #     count_agent_1 += 1
-
-                # #Agent 2 UPDATE
-                # agent  = InferenceAgentFourExtraRules(maze)
-                # trajectory_agent_2, status = agent.solve()
-                # if status != 'unsolvable':
-                #     sum_trajectory_agent_2 += len(trajectory_agent_2)
-                #     count_agent_2 += 1
-
                 # ******************************************
                 # Agent 3
                 # ******************************************
-                start_time = time.process_time_ns()
-                agent = ExampleInferenceAgent(maze)
-                trajectory_agent_3, status, proc_cells_agent_3 = agent.solve()
-                end_time = time.process_time_ns()
-                if status != 'unsolvable':
-                    sum_trajectory_agent_3 += len(trajectory_agent_3)
-                    sum_proc_cells_agent_3 += proc_cells_agent_3
-                    avg_time_agent_3 += (end_time - start_time)
+                agent_3 = ExampleInferenceAgent(maze)
+                trajectory_3, status_3, planning_time_3, total_visited_trajectory_len_3 = agent_3.solve()            
+                if status_3 != 'unsolvable':
+                    sum_trajectory_agent_3 += len(trajectory_3)
+                    sum_proc_cells_agent_3 += total_visited_trajectory_len_3
+                    avg_time_agent_3 += planning_time_3
                     count_agent_3 += 1
                 print(f'for {dim} and {p} Agent 3')
 
                 # ******************************************
                 # Agent 4 
                 # ******************************************
-                start_time = time.process_time_ns()
-                agent = InferenceAgentFourExtraRules(maze)
-                trajectory_agent_4, status, proc_cells_agent_4 = agent.solve()
-                end_time = time.process_time_ns()
-                if status != 'unsolvable':
-                    sum_trajectory_agent_4 += len(trajectory_agent_4)
-                    sum_proc_cells_agent_4 += proc_cells_agent_4
-                    avg_time_agent_4 += (end_time - start_time)
+                agent_4 = InferenceAgentFourExtraRules(maze)
+                trajectory_4, status_4, planning_time_4, total_visited_trajectory_len_4 = agent_4.solve()             
+                if status_4 != 'unsolvable':
+                    sum_trajectory_agent_4 += len(trajectory_4)
+                    sum_proc_cells_agent_4 += total_visited_trajectory_len_4
+                    avg_time_agent_4 += planning_time_4
                     count_agent_4 += 1
                 print(f'for {dim} and {p} Agent 4')
 
@@ -162,35 +142,32 @@ def average_trajectory_vs_all(dimensions, density, iteration, huristic_option, s
                 sum_proc_cells_agent_4/count_agent_4)
             collection_time_agent_4.append(avg_time_agent_4/count_agent_4)
 
-        font_style = {'family': 'serif', 'color': 'black', 'size': 12}
-        title = "Average Trajectory"
-        plt.figure(num=title, tight_layout=True)
-        plt.title(title, fontdict=font_style)
+        # font_style = {'family': 'serif', 'color': 'black', 'size': 12}
+        # title = "Average Trajectory"
+        # plt.figure(num=title, tight_layout=True)
+        # plt.title(title, fontdict=font_style)
 
-        plt.xlabel("Density", fontdict=font_style)
-        plt.ylabel("Length in Number of Steps", fontdict=font_style)
+        # plt.xlabel("Density", fontdict=font_style)
+        # plt.ylabel("Length in Number of Steps", fontdict=font_style)
 
-        average_trajectory_len_agent_1, processed_cells_agent_1 = getQ7Graph(
-            dim, p, huristic_option, stepsize, iteration, density)
-        average_trajectory_len_agent_2, processed_cells_agent_2 = getQ6Graph(
-            dim, p, huristic_option, stepsize, iteration, density)
-        plt.plot(density, average_trajectory_len_agent_1, label="Agent 1")
-        plt.plot(density, average_trajectory_len_agent_2, label="Agent 2")
+        # average_trajectory_len_agent_1, processed_cells_agent_1 = getQ7Graph(
+        #     dim, p, huristic_option, stepsize, iteration, density)
+        # average_trajectory_len_agent_2, processed_cells_agent_2 = getQ6Graph(
+        #     dim, p, huristic_option, stepsize, iteration, density)
+        # plt.plot(density, average_trajectory_len_agent_1, label="Agent 1")
+        # plt.plot(density, average_trajectory_len_agent_2, label="Agent 2")
 
-        plt.plot(density, average_trajectory_len_agent_3, label="Agent 3")
-        plt.plot(density, average_trajectory_len_agent_4, label="Agent 4")
+        # plt.plot(density, average_trajectory_len_agent_3, label="Agent 3")
+        # plt.plot(density, average_trajectory_len_agent_4, label="Agent 4")
 
-        plt.legend()
-        plt.grid()
-        filename = f"images/{dim}_x_{dim}_AvgTraj_vs_ALL_{iteration}.png"
-        plt.savefig(filename)
-        plt.close()
-        average_trajectory_3_vs_4(
-            dim, iteration, average_trajectory_len_agent_3, average_trajectory_len_agent_4)
-        processed_cells_vs_all(dim, processed_cells_agent_1, processed_cells_agent_2,
-                               processed_cells_agent_3, processed_cells_agent_4)
-        time_vs_density_3_vs_4(dim, collection_time_agent_3,
-                               collection_time_agent_4)
+        # plt.legend()
+        # plt.grid()
+        # filename = f"images/{dim}_x_{dim}_AvgTraj_3_vs_4_{iteration}.png"
+        # plt.savefig(filename)
+        # plt.close()
+        average_trajectory_3_vs_4(dim, iteration, average_trajectory_len_agent_3, average_trajectory_len_agent_4)        
+        time_vs_density_3_vs_4(dim, collection_time_agent_3, collection_time_agent_4)
+        processed_cells_3_vs_4(dim, processed_cells_agent_3, processed_cells_agent_4)
 
 
 if __name__ == '__main__':
@@ -199,11 +176,11 @@ if __name__ == '__main__':
     # stepsize = 0.02
     # density = np.arange(0.0, 0.28, stepsize)
     # iteration = 100
-    dimensions = [15, 25, 35, 50]
+    dimensions = [15]
     huristic_option = 0
     stepsize = 0.02
     density = np.arange(0.0, 0.28, stepsize)
-    iteration = 100
+    iteration = 4
     
     average_trajectory_vs_all(
         dimensions, density, iteration, huristic_option, stepsize)
