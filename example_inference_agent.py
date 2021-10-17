@@ -2,6 +2,7 @@ from queue import PriorityQueue
 from gridworld import Cell, GridWorld
 
 import copy
+import time
 from collections import deque
 
 # PrioritizedItem is used to configure the priority queue
@@ -20,16 +21,17 @@ class ExampleInferenceAgent():
         self._dim = maze.get_dim()
         self._goal = [self._dim-1, self._dim-1]
         self._knowledge =GridWorld(self._dim, 0, False)
-        for row in range(self._dim):
-            for col in range(self._dim):
+        for row, row_of_cell in enumerate(self._knowledge.gridworld):
+            for col, cell in enumerate(row_of_cell):
                 if [row, col] in [[0, 0], [0, self._dim-1], 
                                   [self._dim-1, 0], [self._dim-1, self._dim-1]]:
-                    self._knowledge.gridworld[row][col].N = 3
-                elif row == 0 or row == self._dim - 1 or col == 0 or col == self._dim-1:
-                    self._knowledge.gridworld[row][col].N = 5
+                    cell.N = 3
+                elif (row == 0 or row == self._dim - 1 
+                      or col == 0 or col == self._dim-1):
+                    cell.N = 5
                 else:
-                    self._knowledge.gridworld[row][col].N = 8
-                self._knowledge.gridworld[row][col].update_option(option)
+                    cell.N = 8
+                cell.update_option(option)
 
     def generate_path(self, current: Cell) -> list[Cell]:
         """
@@ -47,7 +49,7 @@ class ExampleInferenceAgent():
             current = current.get_parent()
         return list(path)
     
-    def Astar(self, start: Cell) -> list[Cell, str]:
+    def Astar(self, start: Cell) -> list[Cell, str, int]:
         """
         Parameters:
         ----------
@@ -55,12 +57,12 @@ class ExampleInferenceAgent():
 
         Returns:
         -------
-        cell, status_string: Returns cell 
+        cell, status_string, length: Returns cell and path length
                                 if goal node is found along with a status string.
         """
         fringe = PriorityQueue()
         fringe.put(PrioritizedItem(start.get_fscore(), 
-                   self._knowledge.gridworld[start.x][start.y]))
+                   self._knowledge.get_cell(start.x, start.y)))
 
         visited = set()
 
@@ -71,7 +73,7 @@ class ExampleInferenceAgent():
             visited.add(current.get_index())
 
             if [current.x, current.y] == self._goal:
-                return current, 'solution'
+                return current, 'solution', len(visited)
 
             current_gscore = current.get_gscore()
             neighbors = self._knowledge.get_4_neighbors(current)
@@ -83,7 +85,7 @@ class ExampleInferenceAgent():
                     neighbor_copy.update_parent(current)
                     fringe.put(PrioritizedItem(neighbor_copy.get_fscore(), neighbor_copy))
 
-        return None, 'no_solution'
+        return None, 'no_solution', 0
 
     def partial_sensing(self, current: Cell) -> None:
         current.isVisited = True
@@ -92,18 +94,7 @@ class ExampleInferenceAgent():
             if neighbor.is_blocked():
                 current.C += 1
 
-    def inference(self, current: Cell) -> bool:
-        """
-        Parameters:
-        ----------
-        current: The cell where inference is happening
-
-        Returns:
-        -------
-        bool: True if sth new is inferenced; else False.
-        """
-        if not current.isVisited or current.H == 0:
-            return False
+    def update_knowledge(self, current: Cell) -> None:
         neighbors = self._knowledge.get_8_neighbors(current)
         B_new = 0
         E_new = 0
@@ -115,62 +106,69 @@ class ExampleInferenceAgent():
                 E_new += 1
             else:
                 H_new += 1
-        current.H = H_new
         current.B = B_new
         current.E = E_new
+        current.H = H_new
 
+    def inference(self, current: Cell) -> list[Cell]:
+        """
+        Parameters:
+        ----------
+        current: The cell where inference is happening
+
+        Returns:
+        -------
+        list[Cell]: A list of neighbors that changed status 
+                        because of the inference
+        """
+        if not current.isVisited:
+            return []
+        changed_neighbors = []
         # If blocked neighbors count = blocked neighbors,
         #   all remaining hidden neighbors are unblocked
+        neighbors = self._knowledge.get_8_neighbors(current)
         if current.C == current.B:
             for neighbor in neighbors:
-                if not neighbor.is_blocked():
+                if neighbor.is_unconfirmed():
+                    changed_neighbors.append(neighbor)
                     neighbor.update_status(0)
             current.H = 0
-            return True
+            return changed_neighbors
         # If neighbors - blocked neighbors = empty neighbors,
         #   all remaining neighbors are blocked
         if current.N - current.C == current.E:
             for neighbor in neighbors:
-                if not neighbor.is_empty():
+                if neighbor.is_unconfirmed():
+                    changed_neighbors.append(neighbor)
                     neighbor.update_status(1)
             current.H = 0
-            return True
-        return False
+            return changed_neighbors
+        return changed_neighbors
     
-    def inference_all(self) -> bool:
+    def inference_neighbors(self, current: Cell) -> None:
         """
-        Returns:
-        -------
-        bool: True if sth new is inferenced for any cells; else False.
+        Parameters:
+        ----------
+        current: The cell who has it's status changed
         """
-        new_knowledge = 0
-        for row in self._knowledge.gridworld:
-            for cell in row:
-                if self.inference(cell):
-                    new_knowledge += 1
-        if new_knowledge == 0:
-            return False
-        else:
-            return True
-    
-    def inference_path(self, trajectory: list[Cell]) -> bool:
-        """
-        Returns:
-        -------
-        bool: True if sth new is inferenced for any cells; else False.
-        """
-        new_knowledge = 0
-        for cell in reversed(trajectory):
-            if self.inference(cell):
-                new_knowledge += 1
-        if new_knowledge == 0:
-            return False
-        else:
-            return True
-        
+        # All neighbors of current should update their knowledge 
+        #   because the status of current is changed
+        neighbors = self._knowledge.get_8_neighbors(current)
+        for neighbor in neighbors:
+            self.update_knowledge(neighbor)
+
+        # If current is empty then we can apply inference rule on it
+        # If some neighbors' status is changed because of the inference
+        #   we have to recursive call this method for that neighbor
+        if current.is_empty():
+            changed_neighbors = self.inference(current)
+            for changed_neighbor in changed_neighbors:
+                self.inference_neighbors(changed_neighbor)
+
     def is_block_ahead(self, path: list[Cell]) -> bool:
         for cell in path:
-            if cell.is_blocked():
+            knowledge_cell = self._knowledge.get_cell(cell.x, cell.y)
+            if knowledge_cell.is_blocked():
                 return True
         return False
 
@@ -189,42 +187,67 @@ class ExampleInferenceAgent():
                   else return the full path
         """
         for count, cell in enumerate(path):
-            knowledge_cell = self._knowledge.gridworld[cell.x][cell.y]
-            if self._maze.gridworld[cell.x][cell.y].is_blocked():
+            knowledge_cell = self._knowledge.get_cell(cell.x, cell.y)
+            if self._maze.get_cell(cell.x, cell.y).is_blocked():
                 knowledge_cell.update_status(1)
-                # while self.inference_all():
-                #     pass
-                while self.inference_path(trajectory):
-                    pass
+                knowledge_cell.isVisited = True
+                self.inference_neighbors(knowledge_cell)
                 return path[:count], 'blocked'
 
             knowledge_cell.update_status(0)
             if not knowledge_cell.isVisited:
                 self.partial_sensing(knowledge_cell)
-            # while self.inference_all():
-            #     pass
-            while self.inference_path(trajectory):
-                pass
+                self.inference_neighbors(knowledge_cell)
             if self.is_block_ahead(path):
-                return knowledge_cell, 'blocked'
+                return path[:count+1], 'blocked'
         return path, 'find_the_goal'
 
-    def solve(self) -> list[list, str]:
+    def solve(self) -> list[list, str, float]:
+        """       
+        Returns:
+        -------
+        path: The path of the solution if there exists
+        status_string: Whether the maze is solvable
+        plan_time: The total time A* search took
+        total_visited_trajectory_len: The trajectory length of visited cell
+        """
+        trajectory = []
+        start = time.time()
+        (end_cell, status_string, 
+         total_visited_trajectory_len) = self.Astar(self._knowledge.get_cell(0, 0))
+        end = time.time()
+        planning_time = (end - start)
+        while True:
+            if status_string == 'no_solution':
+                return trajectory, 'unsolvable', 0, 0
+            path = self.generate_path(end_cell)
+            path, status_string = self.execute_path(path, trajectory)
+            trajectory.extend(path)
+            if status_string == 'find_the_goal':
+                return (trajectory, 'find_the_goal', 
+                        planning_time, total_visited_trajectory_len)
+            start = time.time()
+            (end_cell, status_string, 
+             visited_trajectory_len) = self.Astar(path[-1])
+            end = time.time()
+            planning_time += (end - start)
+            total_visited_trajectory_len += visited_trajectory_len
+    
+    def solve_in_discovered_gridworld(self) -> list[list,str]:
         """       
         Returns:
         -------
         path: The path of the solution if there exists
         status_string: Whether the maze is solvable
         """
-        trajectory = []
-        end_cell, status_string = self.Astar(self._knowledge.gridworld[0][0])
-        while True:
-            if status_string == 'no_solution':
-                return trajectory, 'unsolvable'
-            path = self.generate_path(end_cell)
-            path, status_string = self.execute_path(path, trajectory)
-            trajectory.extend(path)
-            if status_string == 'find_the_goal':
-                return trajectory, 'find_the_goal'
-            end_cell, status_string = self.Astar(path[-1])
+        for row in self._knowledge.gridworld:
+            for cell in row:
+                if cell.is_unconfirmed():
+                    cell.update_status(1)
+        (end_cell, status_string,
+        visited_trajectory_len) = self.Astar(self._knowledge.get_cell(0, 0))
+        if status_string == 'no_solution':
+            return [], 'unsolvable'
+        return self.generate_path(end_cell), 'find_the_goal'
+
 
