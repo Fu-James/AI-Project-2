@@ -31,8 +31,8 @@ def solve_agent(maze, agent, title):
 
 
 if __name__ == '__main__':
-    dim = 15
-    density = 0.15
+    dim = 100
+    density = 0.22
     maze = GridWorld(dim, density, True)
 
     agent = ExampleInferenceAgent(maze)
