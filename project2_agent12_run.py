@@ -2,8 +2,12 @@ from func_Astar import *
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from project2_agent12_function import *
+from project2_agent12_func_new import *
 import time
+import numpy as np
+import matplotlib.pyplot as plt
+
+
 
 dim = 101
 maxP = 0.33
@@ -225,8 +229,52 @@ for p0 in seq_p:
 
 
 
+##start plot
+seq_p= np.arange(0,maxP,stepsize)
 
 
+fig, axs = plt.subplots(2,2,figsize=(16,10))
+
+axs[0,0].plot(seq_p , seq_avg_explored, color='red', label = 'Agent 1')
+axs[0,0].set_title('(a) Avearge Number of Visited/Explored Cell')
+axs[0,0].set(xlabel="Density", ylabel="Number of Cells")
+
+
+axs[0,1].plot(seq_p , seq_avg_path, color='red', label = 'Agent 1')
+axs[0,1].set_title('(b) Shortest Path in Discovered Gridworld')
+axs[0,1].set(xlabel="Density", ylabel="Number of Cells")
+
+
+axs[1,0].plot(seq_p , seq_avg_time, color='red', label = 'Agent 1')
+axs[1,0].set_title('(c) Average Total Running Time')
+axs[1,0].set(xlabel="Density", ylabel="Time (nano second)")
+
+
+axs[1,1].plot(seq_p , seq_avg_planning_time, color='red', label = 'Agent 1')
+axs[1,1].set_title('(d) Avearge Total Planning Time')
+axs[1,1].set(xlabel="Density", ylabel="Time (nano second)")
+
+
+
+##plot
+axs[0,0].plot(seq_p , seq_avg_explored_Q7, color='blue', label = 'Agent 2')
+axs[0,1].plot(seq_p , seq_avg_path_Q7, color='blue', label = 'Agent 2')
+axs[1,0].plot(seq_p , seq_avg_time_Q7, color='blue', label = 'Agent 2')
+axs[1,1].plot(seq_p , seq_avg_planning_time_Q7, color='blue', label = 'Agent 2')
+
+
+axs[0,0].legend(loc="upper left")
+axs[0,1].legend(loc="upper left")
+axs[1,0].legend(loc="upper left")
+axs[1,1].legend(loc="upper left")
+
+axs[0,0].grid()
+axs[0,1].grid()
+axs[1,0].grid()
+axs[1,1].grid()
+
+
+fig.show()
 
 
 
