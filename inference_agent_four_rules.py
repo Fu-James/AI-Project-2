@@ -216,9 +216,6 @@ class InferenceAgentFourExtraRules():
 
             for key, value in assignments.items():
                 knowledge_cell = self._knowledge.gridworld[key[0]][key[1]]
-                actual_cell = self._maze.gridworld[key[0]][key[1]]
-                # if actual_cell.get_status().value != value:
-                #     print("Incorrect")
                 if knowledge_cell.is_unconfirmed():
                     if Status(value) == Status.Empty:
                         knowledge_cell.update_status(Status.Empty)
