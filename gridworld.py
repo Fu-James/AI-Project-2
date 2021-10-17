@@ -7,12 +7,13 @@ class Status(enum.Enum):
     Empty = 0
     Blocked = 1
     Unconfirmed = 2
+    Walked = 3
 
 
 class Cell():
-    def __init__(self, dim: int, parent, x: int = 0, y: int = 0, N: int = 0, 
-                 isVisited: bool = False, status: Status = Status.Unconfirmed, 
-                 C: int = 0, B: int = 0, E: int = 0, H: int = 8, gscore: int = 0, 
+    def __init__(self, dim: int, parent, x: int = 0, y: int = 0, N: int = 0,
+                 isVisited: bool = False, status: Status = Status.Unconfirmed,
+                 C: int = 0, B: int = 0, E: int = 0, H: int = 8, gscore: int = 0,
                  option: int = 0) -> None:
         self.x = x
         self.y = y
@@ -46,7 +47,7 @@ class Cell():
     def update_gscore(self, gscore: int) -> None:
         self.gscore = gscore
         self.update_fscore()
-    
+
     def get_gscore(self) -> float:
         return self.gscore
 
@@ -63,9 +64,9 @@ class Cell():
 
     def get_index(self) -> int:
         return self._index
-    
+
     def get_parent(self):
-        return self._parent        
+        return self._parent
 
     def get_4_children(self) -> list:
         children = []
@@ -106,6 +107,9 @@ class Cell():
     def get_status(self) -> Status:
         return self._status
 
+    def is_unconfirmed(self) -> bool:
+        return self._status is Status.Unconfirmed
+
     def is_blocked(self) -> bool:
         return self._status is Status.Blocked
 
@@ -127,13 +131,14 @@ class GridWorld():
         maze = [[None for i in range(self._dim)] for i in range(self._dim)]
         for row in range(self._dim):
             for col in range(self._dim):
-                maze[row][col] = Cell(self._dim, None, row, col, status=Status.Empty)
+                maze[row][col] = Cell(
+                    self._dim, None, row, col, status=Status.Empty)
                 if random.uniform(0, 1) < self._density:
                     maze[row][col].update_status(Status.Blocked)
 
         maze[0][0] = Cell(self._dim, None, 0, 0, 3, False, Status.Empty)
         maze[self._dim-1][self._dim-1] = Cell(self._dim, None, self._dim-1,
-                                            self._dim-1, 3, False, Status.Empty)
+                                              self._dim-1, 3, False, Status.Empty)
 
         self.gridworld = maze
 
@@ -143,14 +148,14 @@ class GridWorld():
         self.gridworld = knowledge
 
     def get_N(self, row: int, col: int) -> int:
-        if ([row, col] in [[0, 0], [0, self.dim-1], 
-                          [self.dim-1, 0], [self.dim-1, self.dim-1]]):
+        if ([row, col] in [[0, 0], [0, self.dim-1],
+                           [self.dim-1, 0], [self.dim-1, self.dim-1]]):
             return 3
         elif row == 0 or row == self.dim - 1 or col == 0 or col == self.dim-1:
             return 5
         else:
             return 8
-    
+
     def get_dim(self) -> int:
         return self._dim
 
@@ -167,9 +172,9 @@ class GridWorld():
             neighbors.append(self.gridworld[current.x+1][current.y])
         # W
         if current.y - 1 >= 0:
-            neighbors.append(self.gridworld[current.x][current.y-1])   
+            neighbors.append(self.gridworld[current.x][current.y-1])
         return neighbors
-    
+
     def get_8_neighbors(self, current: Cell) -> list:
         # N, S, E, W
         neighbors = self.get_4_neighbors(current)
@@ -185,7 +190,7 @@ class GridWorld():
         # SE
         if current.x + 1 < self._dim and current.y + 1 < self._dim:
             neighbors.append(self.gridworld[current.x+1][current.y+1])
-        return neighbors  
+        return neighbors
 
     def print_grid(self) -> str:
         maze = ""
@@ -199,11 +204,11 @@ class GridWorld():
         # else:
         for row in self.gridworld:
             maze += "  ".join([str(cell.get_status().value)
-                                for cell in row]) + "\n"
+                               for cell in row]) + "\n"
         if self._is_maze:
             print("Option:{} Maze".format(
-            str(self.gridworld[0][0].option), self._is_maze))
+                str(self.gridworld[0][0].option), self._is_maze))
         else:
             print("Option:{} Knowledge".format(
-            str(self.gridworld[0][0].option), self._is_maze))
+                str(self.gridworld[0][0].option), self._is_maze))
         print(maze)

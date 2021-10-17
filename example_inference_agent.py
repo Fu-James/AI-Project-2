@@ -18,6 +18,8 @@ class ExampleInferenceAgent():
     def __init__(self, maze: GridWorld, option: int = 0):
         self._maze = maze
         self._dim = maze.get_dim()
+        self._bump_into_blocked = 0
+        self._cells_inferred = 0
         self._goal = [self._dim-1, self._dim-1]
         self._knowledge =GridWorld(self._dim, 0, False)
         for row in range(self._dim):
@@ -47,7 +49,7 @@ class ExampleInferenceAgent():
             current = current.get_parent()
         return list(path)
     
-    def Astar(self, start: Cell) -> list[Cell, str]:
+    def Astar(self, start: Cell, processed) -> list[Cell, str]:
         """
         Parameters:
         ----------
@@ -69,9 +71,10 @@ class ExampleInferenceAgent():
             if current.get_index() in visited:
                 continue
             visited.add(current.get_index())
+            processed += 1
 
             if [current.x, current.y] == self._goal:
-                return current, 'solution'
+                return current, 'solution', processed
 
             current_gscore = current.get_gscore()
             neighbors = self._knowledge.get_4_neighbors(current)
@@ -83,7 +86,7 @@ class ExampleInferenceAgent():
                     neighbor_copy.update_parent(current)
                     fringe.put(PrioritizedItem(neighbor_copy.get_fscore(), neighbor_copy))
 
-        return None, 'no_solution'
+        return None, 'no_solution', processed
 
     def partial_sensing(self, current: Cell) -> None:
         current.isVisited = True
@@ -125,6 +128,7 @@ class ExampleInferenceAgent():
             for neighbor in neighbors:
                 if not neighbor.is_blocked():
                     neighbor.update_status(0)
+                    self._cells_inferred += 1
             current.H = 0
             return True
         # If neighbors - blocked neighbors = empty neighbors,
@@ -133,6 +137,7 @@ class ExampleInferenceAgent():
             for neighbor in neighbors:
                 if not neighbor.is_empty():
                     neighbor.update_status(1)
+                    self._cells_inferred += 1
             current.H = 0
             return True
         return False
@@ -192,6 +197,7 @@ class ExampleInferenceAgent():
             knowledge_cell = self._knowledge.gridworld[cell.x][cell.y]
             if self._maze.gridworld[cell.x][cell.y].is_blocked():
                 knowledge_cell.update_status(1)
+                self._bump_into_blocked += 1
                 # while self.inference_all():
                 #     pass
                 while self.inference_path(trajectory):
@@ -216,15 +222,16 @@ class ExampleInferenceAgent():
         path: The path of the solution if there exists
         status_string: Whether the maze is solvable
         """
+        processed = 0
         trajectory = []
-        end_cell, status_string = self.Astar(self._knowledge.gridworld[0][0])
+        end_cell, status_string, processed = self.Astar(self._knowledge.gridworld[0][0], processed)
         while True:
             if status_string == 'no_solution':
-                return trajectory, 'unsolvable'
+                return trajectory, 'unsolvable', processed
             path = self.generate_path(end_cell)
             path, status_string = self.execute_path(path, trajectory)
             trajectory.extend(path)
             if status_string == 'find_the_goal':
-                return trajectory, 'find_the_goal'
-            end_cell, status_string = self.Astar(path[-1])
+                return trajectory, 'find_the_goal', processed
+            end_cell, status_string, processed = self.Astar(path[-1], processed)
 
