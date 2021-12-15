@@ -1,9 +1,11 @@
 from queue import PriorityQueue
 from gridworld import Cell, GridWorld
 
-import copy
 import time
+import numpy as np
 from collections import deque
+
+import csv
 
 # PrioritizedItem is used to configure the priority queue
 # such that it will only compare the priority, not the item
@@ -21,6 +23,7 @@ class ExampleInferenceAgent():
         self._dim = maze.get_dim()
         self._goal = [self._dim-1, self._dim-1]
         self._knowledge =GridWorld(self._dim, 0, False)
+        self.training = GridWorld(self._dim, 0, False)
         for row, row_of_cell in enumerate(self._knowledge.gridworld):
             for col, cell in enumerate(row_of_cell):
                 if [row, col] in [[0, 0], [0, self._dim-1], 
@@ -60,17 +63,17 @@ class ExampleInferenceAgent():
         cell, status_string, length: Returns cell and path length
                                 if goal node is found along with a status string.
         """
+        start_cell = self._knowledge.get_cell(start.x, start.y)
+        start_cell.update_parent(None)
+
         fringe = PriorityQueue()
-        fringe.put(PrioritizedItem(start.get_fscore(), 
-                   self._knowledge.get_cell(start.x, start.y)))
+        fringe.put(PrioritizedItem(0, start_cell))
 
         visited = set()
+        visited.add(start_cell.get_index())
 
         while not fringe.empty():
             current = fringe.get().item
-            if current.get_index() in visited:
-                continue
-            visited.add(current.get_index())
 
             if [current.x, current.y] == self._goal:
                 return current, 'solution', len(visited)
@@ -79,11 +82,14 @@ class ExampleInferenceAgent():
             neighbors = self._knowledge.get_4_neighbors(current)
 
             for neighbor in neighbors:
-                if not neighbor.is_blocked() and neighbor.get_index() not in visited:
-                    neighbor_copy = copy.copy(neighbor)
-                    neighbor_copy.update_gscore(current_gscore + 1)
-                    neighbor_copy.update_parent(current)
-                    fringe.put(PrioritizedItem(neighbor_copy.get_fscore(), neighbor_copy))
+                neighbor_index = neighbor.get_index()
+                if (not neighbor.is_blocked() and 
+                    neighbor_index not in visited):
+                    visited.add(neighbor_index)
+
+                    neighbor.update_gscore(current_gscore + 1)
+                    neighbor.update_parent(current)
+                    fringe.put(PrioritizedItem(neighbor.get_fscore(), neighbor))
 
         return None, 'no_solution', 0
 
@@ -110,7 +116,7 @@ class ExampleInferenceAgent():
         current.E = E_new
         current.H = H_new
 
-    def inference(self, current: Cell) -> list[Cell]:
+    def apply_inference_rule(self, current: Cell) -> list[Cell]:
         """
         Parameters:
         ----------
@@ -145,7 +151,7 @@ class ExampleInferenceAgent():
             return changed_neighbors
         return changed_neighbors
     
-    def inference_neighbors(self, current: Cell) -> None:
+    def inference(self, current: Cell) -> None:
         """
         Parameters:
         ----------
@@ -161,9 +167,9 @@ class ExampleInferenceAgent():
         # If some neighbors' status is changed because of the inference
         #   we have to recursive call this method for that neighbor
         if current.is_empty():
-            changed_neighbors = self.inference(current)
+            changed_neighbors = self.apply_inference_rule(current)
             for changed_neighbor in changed_neighbors:
-                self.inference_neighbors(changed_neighbor)
+                self.inference(changed_neighbor)
 
     def is_block_ahead(self, path: list[Cell]) -> bool:
         for cell in path:
@@ -173,7 +179,7 @@ class ExampleInferenceAgent():
         return False
 
 
-    def execute_path(self, path: list[Cell], trajectory: list[Cell]) -> list[list[Cell], str]:
+    def execute_path(self, path: list[Cell]) -> list[list[Cell], str]:
         """
         Parameters:
         ----------
@@ -188,21 +194,37 @@ class ExampleInferenceAgent():
         """
         for count, cell in enumerate(path):
             knowledge_cell = self._knowledge.get_cell(cell.x, cell.y)
+            training_cell = self.training.get_cell(cell.x, cell.y)
             if self._maze.get_cell(cell.x, cell.y).is_blocked():
                 knowledge_cell.update_status(1)
+                training_cell.update_status(1)
                 knowledge_cell.isVisited = True
-                self.inference_neighbors(knowledge_cell)
+                self.inference(knowledge_cell)
                 return path[:count], 'blocked'
 
             knowledge_cell.update_status(0)
+            training_cell.update_status(0)
             if not knowledge_cell.isVisited:
                 self.partial_sensing(knowledge_cell)
-                self.inference_neighbors(knowledge_cell)
+                self.partial_sensing(training_cell)
+                self.inference(knowledge_cell)
             if self.is_block_ahead(path):
                 return path[:count+1], 'blocked'
         return path, 'find_the_goal'
 
-    def solve(self) -> list[list, str, float]:
+    def get_direction(self, a: Cell, b: Cell) -> int:
+        diff = b.get_index() - a.get_index()
+        if diff == -self._dim:
+            return 0
+        elif diff == -1:
+            return 1
+        elif diff == 1:
+            return 2
+        else:
+            return 3
+            
+
+    def solve(self) -> list[list, str, float, float]:
         """       
         Returns:
         -------
@@ -212,24 +234,39 @@ class ExampleInferenceAgent():
         total_visited_trajectory_len: The trajectory length of visited cell
         """
         trajectory = []
-        start = time.time()
+        start = time.time_ns()
         (end_cell, status_string, 
          total_visited_trajectory_len) = self.Astar(self._knowledge.get_cell(0, 0))
-        end = time.time()
+        end = time.time_ns()
         planning_time = (end - start)
         while True:
+            # self.training.print_grid()
             if status_string == 'no_solution':
                 return trajectory, 'unsolvable', 0, 0
             path = self.generate_path(end_cell)
-            path, status_string = self.execute_path(path, trajectory)
+
+            # Write training data
+            with open('training3.csv', 'a', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                input = np.concatenate((self.training.get_status(), self.training.get_C()))
+                for cell_a, cell_b in zip(path[:-1], path[1:]):
+                    temp = input[cell_a.get_index()]
+                    input[cell_a.get_index()] = -1
+                    writer.writerow(input)
+                    input[cell_a.get_index()] = temp
+                    output = self.get_direction(cell_a, cell_b)
+                    writer.writerow([output])
+            # for cell in path:
+            #     print(cell.x, cell.y)
+            path, status_string = self.execute_path(path)
             trajectory.extend(path)
             if status_string == 'find_the_goal':
                 return (trajectory, 'find_the_goal', 
                         planning_time, total_visited_trajectory_len)
-            start = time.time()
+            start = time.time_ns()
             (end_cell, status_string, 
              visited_trajectory_len) = self.Astar(path[-1])
-            end = time.time()
+            end = time.time_ns()
             planning_time += (end - start)
             total_visited_trajectory_len += visited_trajectory_len
     
@@ -245,9 +282,7 @@ class ExampleInferenceAgent():
                 if cell.is_unconfirmed():
                     cell.update_status(1)
         (end_cell, status_string,
-        visited_trajectory_len) = self.Astar(self._knowledge.get_cell(0, 0))
+        _) = self.Astar(self._knowledge.get_cell(0, 0))
         if status_string == 'no_solution':
             return [], 'unsolvable'
         return self.generate_path(end_cell), 'find_the_goal'
-
-

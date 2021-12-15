@@ -212,3 +212,9 @@ class GridWorld():
 
     def get_grid_ascii(self) -> list[list[int]]:
         return [[cell.get_status().value for cell in row] for row in self.gridworld]
+
+    def get_status(self) -> list[int]:
+        return [cell.get_status().value for row in self.gridworld for cell in row]
+
+    def get_C(self) -> list[int]:
+        return [cell.C for row in self.gridworld for cell in row]
